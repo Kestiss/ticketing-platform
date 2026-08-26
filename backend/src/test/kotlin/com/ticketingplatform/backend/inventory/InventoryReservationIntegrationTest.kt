@@ -17,9 +17,11 @@ import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 
 @SpringBootTest
+@Import(PostgreSqlTestConfiguration::class)
 class InventoryReservationIntegrationTest(
     @Autowired private val organizations: OrganizationService,
     @Autowired private val paymentProfiles: PaymentProfileService,
