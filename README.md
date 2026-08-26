@@ -1,19 +1,19 @@
 # Ticketing Platform
 
-An enterprise-oriented event ticketing platform for EU/EEA organizers. The product will support primary ticket sales, platform-managed ticket credentials, official ticket resale through revocation and reissuance, organizer teams, and per-event payment-provider selection.
+An enterprise-oriented event ticketing platform for EU/EEA organizers. It will support primary sales, platform-managed ticket credentials, official resale through revocation and reissuance, organizer teams, and a payment provider chosen and locked per event.
 
-## Current milestone
+## Current vertical-slice status
 
-The first vertical slice delivers this workflow:
+Implemented locally:
 
-1. An organizer creates an event and general-admission ticket type.
-2. The event selects one Stripe-backed payment profile.
-3. Sales open and lock that event payment profile.
-4. A customer reserves inventory and pays.
-5. A verified payment webhook confirms the order.
-6. The platform issues the customer's ticket entitlement and credential.
+- Organization creation and read API
+- Organizer-owned Stripe payment-profile metadata, without Stripe secrets or live API calls
+- Event and general-admission ticket-type creation
+- Validation that payment profiles belong to the event organizer
+- Sales opening only when an event has an active ticket type and an active payment profile
+- Atomic lock of an event payment profile when sales open
 
-The initial commit establishes the local runtime baseline only. Business modules, Stripe integration, Keycloak realm configuration, and the end-to-end flow follow in focused commits.
+Next: inventory reservations, then order creation and Stripe Checkout.
 
 ## Technology baseline
 
@@ -38,27 +38,31 @@ Only stable production releases are permitted. Preview, milestone, beta, release
 docker compose up -d
 ```
 
-This starts PostgreSQL on port `5432` and Keycloak on port `8081`. The credentials in `compose.yaml` are deliberately local-development-only values.
-
 ## Run the API
 
 ```bash
 ./gradlew :backend:bootRun --args='--spring.profiles.active=local'
 ```
 
-The unauthenticated health endpoint is available at:
+## Example API flow
 
-```text
-GET http://localhost:8080/api/v1/system/health
+Create an organizer:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organizations \
+  -H 'Content-Type: application/json' \
+  -d '{"legalName":"Example Events GmbH","displayName":"Example Events","defaultLocale":"en-GB"}'
 ```
 
-## Repository layout
+Create a Stripe payment profile, using the returned organization ID:
 
-```text
-backend/                Kotlin and Spring Boot modular monolith
-compose.yaml            Local PostgreSQL and Keycloak services
-docs/                   Architecture decisions, threat models, and runbooks
+```bash
+curl -X POST http://localhost:8080/api/v1/organizations/{organizationId}/payment-profiles \
+  -H 'Content-Type: application/json' \
+  -d '{"providerAccountReference":"acct_example","settlementCurrency":"EUR"}'
 ```
+
+Create an event and ticket type, then open sales with the selected payment-profile ID. Once sales open, the profile is immutable for that event.
 
 ## Security notes
 
@@ -66,7 +70,7 @@ docs/                   Architecture decisions, threat models, and runbooks
 - Customer ticket access will use short-lived, single-use magic links.
 - Personnel accounts will be invitation-only and use password authentication with MFA support.
 - Raw card data will never pass through this application.
-- Payment-provider choice is locked per event once sales begin.
+- Bootstrap endpoints are temporarily open for local development and will be replaced with Keycloak authorization before a deployable environment.
 
 ## License
 
