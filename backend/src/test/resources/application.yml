@@ -1,0 +1,7 @@
+spring:
+  flyway:
+    enabled: true
+
+ticketing:
+  inventory:
+    expiry-interval-ms: 3600000
