@@ -42,13 +42,16 @@ class InventoryReservationIntegrationTest(
     }
 
     @Test
-    fun `idempotent reservation creates capacity hold only once`() {
+    fun `concurrent idempotent retries create one reservation and one capacity hold`() {
         val fixture = onSaleFixture(capacity = 5)
-        val command = CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 2, "same-request")
-        val first = reservations.reserve(command)
-        val repeated = reservations.reserve(command)
+        val executor = Executors.newFixedThreadPool(6)
+        val results = executor.invokeAll((1..6).map { Callable {
+            reservations.reserve(CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 2, "same-request"))
+        } })
+        executor.shutdown()
+        executor.awaitTermination(10, TimeUnit.SECONDS)
 
-        assertEquals(first.id, repeated.id)
+        assertEquals(1, results.map { it.get().id }.toSet().size)
         assertEquals(2, inventoryReserved(fixture.ticketTypeId))
     }
 
@@ -72,6 +75,26 @@ class InventoryReservationIntegrationTest(
         assertEquals(1, reservations.expireDueReservations())
         assertEquals(0, reservations.expireDueReservations())
         assertEquals(0, inventoryReserved(fixture.ticketTypeId))
+    }
+
+    @Test
+    fun `closed event cannot reserve tickets`() {
+        val fixture = onSaleFixture(capacity = 5)
+        jdbc.update("UPDATE event SET status = 'SALES_CLOSED' WHERE id = :id", mapOf("id" to fixture.eventId))
+
+        assertFailsWith<IllegalArgumentException> {
+            reservations.reserve(CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 1, "closed"))
+        }
+    }
+
+    @Test
+    fun `inactive ticket type cannot reserve tickets`() {
+        val fixture = onSaleFixture(capacity = 5)
+        jdbc.update("UPDATE ticket_type SET status = 'INACTIVE' WHERE id = :id", mapOf("id" to fixture.ticketTypeId))
+
+        assertFailsWith<InventoryUnavailableException> {
+            reservations.reserve(CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 1, "inactive"))
+        }
     }
 
     @Test

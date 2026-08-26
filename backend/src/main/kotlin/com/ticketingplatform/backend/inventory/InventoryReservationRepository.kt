@@ -11,6 +11,14 @@ import org.springframework.stereotype.Repository
 class InventoryReservationRepository(
     private val jdbc: NamedParameterJdbcTemplate,
 ) {
+    fun lockIdempotencyKey(organizationId: UUID, eventId: UUID, ticketTypeId: UUID, idempotencyKey: String) {
+        val scope = "$organizationId:$eventId:$ticketTypeId:$idempotencyKey"
+        jdbc.queryForList(
+            "SELECT pg_advisory_xact_lock(hashtextextended(:scope, 0))",
+            mapOf("scope" to scope),
+        )
+    }
+
     fun findByIdempotencyKey(organizationId: UUID, eventId: UUID, ticketTypeId: UUID, idempotencyKey: String): InventoryReservation? = jdbc.query(
         """SELECT * FROM inventory_reservation WHERE organization_id = :organizationId AND event_id = :eventId
            AND ticket_type_id = :ticketTypeId AND idempotency_key = :idempotencyKey""",

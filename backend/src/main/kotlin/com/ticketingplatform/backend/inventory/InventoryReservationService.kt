@@ -21,6 +21,7 @@ class InventoryReservationService(
         val key = command.idempotencyKey.trim()
         require(key.isNotBlank()) { "idempotencyKey must not be blank" }
 
+        reservationRepository.lockIdempotencyKey(command.organizationId, command.eventId, command.ticketTypeId, key)
         reservationRepository.findByIdempotencyKey(command.organizationId, command.eventId, command.ticketTypeId, key)?.let { return it }
         requireTicketTypeIsAvailable(command)
         val now = Instant.now(clock)
