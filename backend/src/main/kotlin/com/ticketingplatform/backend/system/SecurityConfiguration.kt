@@ -14,7 +14,14 @@ class SecurityConfiguration {
             .csrf { it.disable() }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/v1/system/health", "/actuator/health").permitAll()
+                // TODO: Replace these temporary local-bootstrap endpoints with Keycloak resource-server authorization.
                 it.requestMatchers(HttpMethod.POST, "/api/v1/organizations").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/payment-profiles").permitAll()
+                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/payment-profiles/*").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events").permitAll()
+                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/ticket-types").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/sales/open").permitAll()
                 it.anyRequest().denyAll()
             }
             .build()
