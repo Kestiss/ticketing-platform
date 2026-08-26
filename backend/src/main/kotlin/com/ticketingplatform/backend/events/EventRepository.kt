@@ -65,6 +65,11 @@ class TicketTypeRepository(private val jdbc: NamedParameterJdbcTemplate) {
                 .addValue("status", ticketType.status.name).addValue("createdAt", ticketType.createdAt)
                 .addValue("updatedAt", ticketType.updatedAt),
         )
+        jdbc.update(
+            """INSERT INTO ticket_inventory (ticket_type_id, sold_quantity, reserved_quantity, updated_at)
+                VALUES (:ticketTypeId, 0, 0, :updatedAt)""",
+            mapOf("ticketTypeId" to ticketType.id, "updatedAt" to ticketType.createdAt),
+        )
         return ticketType
     }
 

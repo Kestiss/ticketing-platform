@@ -64,6 +64,17 @@ class InventoryReservationIntegrationTest(
     }
 
     @Test
+    fun `expiry releases capacity exactly once`() {
+        val fixture = onSaleFixture(capacity = 5)
+        val reservation = reservations.reserve(CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 2, "expire-me"))
+        jdbc.update("UPDATE inventory_reservation SET expires_at = :past WHERE id = :id", mapOf("past" to Instant.now().minusSeconds(1), "id" to reservation.id))
+
+        assertEquals(1, reservations.expireDueReservations())
+        assertEquals(0, reservations.expireDueReservations())
+        assertEquals(0, inventoryReserved(fixture.ticketTypeId))
+    }
+
+    @Test
     fun `different organization cannot read reservation`() {
         val fixture = onSaleFixture(capacity = 5)
         val reservation = reservations.reserve(CreateReservationCommand(fixture.organizationId, fixture.eventId, fixture.ticketTypeId, 1, "private"))
