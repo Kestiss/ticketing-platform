@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${TICKETING_DATABASE_URL:jdbc:postgresql://localhost:5432/ticketing}
+    username: ${TICKETING_DATABASE_USERNAME:ticketing}
+    password: ${TICKETING_DATABASE_PASSWORD:ticketing_local_only}
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    com.ticketingplatform: DEBUG

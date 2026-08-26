@@ -1,0 +1,19 @@
+.gradle/
+build/
+**/build/
+out/
+.idea/
+*.iml
+
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+
+# Key material and local exports
+*.pem
+*.key
+*.p12
+*.pfx

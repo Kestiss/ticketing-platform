@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_DB: ticketing
+      POSTGRES_USER: ticketing
+      POSTGRES_PASSWORD: ticketing_local_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketing -d ticketing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.2
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: keycloak_local_only
+    ports:
+      - "8081:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+
+volumes:
+  postgres-data:
+  keycloak-data:
