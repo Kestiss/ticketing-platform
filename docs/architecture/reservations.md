@@ -1,13 +1,5 @@
+## Reservation processing
 
-## Reservation API
+Reservations are held for 15 minutes. A scheduled worker claims expired active reservations using PostgreSQL `FOR UPDATE SKIP LOCKED`, marks them expired, and releases capacity within the same transaction. This prevents two workers from releasing a hold twice.
 
-After sales are open, reserve a ticket type with a client-generated idempotency key:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organizations/{organizationId}/events/{eventId}/reservations \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: 2eb08eef-fb5e-4f6b-9e8e-0b1b5050b2e8' \
-  -d '{"ticketTypeId":"{ticketTypeId}","quantity":2}'
-```
-
-Reservations last 15 minutes. Capacity is reserved atomically in PostgreSQL and will be converted to sold inventory only after a future verified payment step.
+The inventory counter is intentionally separate from orders. A later payment-confirmation transaction will convert `reserved_quantity` into `sold_quantity` while marking the reservation `CONVERTED`.

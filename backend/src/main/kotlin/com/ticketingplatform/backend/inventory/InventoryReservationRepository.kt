@@ -41,6 +41,22 @@ class InventoryReservationRepository(
     fun expire(id: UUID, now: Instant): InventoryReservation? = updateAndReturn(id, InventoryReservationStatus.ACTIVE, InventoryReservationStatus.EXPIRED, now)
     fun cancel(id: UUID, now: Instant): InventoryReservation? = updateAndReturn(id, InventoryReservationStatus.ACTIVE, InventoryReservationStatus.CANCELLED, now)
 
+    fun claimExpired(now: Instant, limit: Int): List<InventoryReservation> = jdbc.query(
+        """WITH candidates AS (
+              SELECT id FROM inventory_reservation
+              WHERE status = 'ACTIVE' AND expires_at <= :now
+              ORDER BY expires_at
+              FOR UPDATE SKIP LOCKED
+              LIMIT :limit
+            )
+            UPDATE inventory_reservation reservation
+            SET status = 'EXPIRED', updated_at = :now
+            FROM candidates
+            WHERE reservation.id = candidates.id
+            RETURNING reservation.*""",
+        mapOf("now" to now, "limit" to limit),
+    ) { rs, _ -> rs.toReservation() }
+
     private fun updateAndReturn(id: UUID, from: InventoryReservationStatus, to: InventoryReservationStatus, now: Instant): InventoryReservation? {
         val updated = jdbc.query(
             """UPDATE inventory_reservation SET status = :toStatus, updated_at = :now

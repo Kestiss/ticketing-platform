@@ -1,18 +1,5 @@
 spring:
-  application:
-    name: ticketing-platform
-  lifecycle:
-    timeout-per-shutdown-phase: 30s
-
-server:
-  shutdown: graceful
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-  endpoint:
-    health:
-      probes:
-        enabled: true
+  task:
+    scheduling:
+      pool:
+        size: 2

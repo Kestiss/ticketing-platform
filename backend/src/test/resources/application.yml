@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:18.6:///ticketing?TC_REUSABLE=true
+    username: ticketing
+    password: ticketing
+  flyway:
+    enabled: true
+
+ticketing:
+  inventory:
+    expiry-interval-ms: 3600000
