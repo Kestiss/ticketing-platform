@@ -25,6 +25,8 @@ class SecurityConfiguration {
                 it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/reservations").permitAll()
                 it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
                 it.requestMatchers(HttpMethod.DELETE, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
+                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/orders").permitAll()
+                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/orders/*").permitAll()
                 it.anyRequest().denyAll()
             }
             .build()
