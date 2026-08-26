@@ -1,10 +1,8 @@
-FROM eclipse-temurin:25-jdk AS build
+FROM gradle:9.7.1-jdk25 AS build
 WORKDIR /workspace
-COPY gradle gradle
-COPY gradlew gradlew
 COPY settings.gradle.kts build.gradle.kts ./
 COPY backend backend
-RUN ./gradlew :backend:bootJar --no-daemon
+RUN gradle :backend:bootJar --no-daemon
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
