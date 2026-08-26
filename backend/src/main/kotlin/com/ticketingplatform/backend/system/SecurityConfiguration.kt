@@ -13,6 +13,7 @@ class SecurityConfiguration {
             .csrf { it.disable() }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/v1/system/health", "/actuator/health").permitAll()
+                it.requestMatchers("POST", "/api/v1/organizations").permitAll()
                 it.anyRequest().denyAll()
             }
             .build()
