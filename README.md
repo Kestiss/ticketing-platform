@@ -1,19 +1,20 @@
 # Ticketing Platform
 
-An enterprise-oriented event ticketing platform for EU/EEA organizers. It will support primary sales, platform-managed ticket credentials, official resale through revocation and reissuance, organizer teams, and a payment provider chosen and locked per event.
+An enterprise-oriented EU/EEA event-ticketing platform with organizer teams, platform-managed ticket credentials, official resale through credential revocation and reissuance, and one immutable payment profile per event once sales open.
 
-## Current vertical-slice status
+## First vertical slice: complete backend flow
 
-Implemented locally:
+The backend now supports the core transactional flow:
 
-- Organization creation and read API
-- Organizer-owned Stripe payment-profile metadata, without Stripe secrets or live API calls
-- Event and general-admission ticket-type creation
-- Validation that payment profiles belong to the event organizer
-- Sales opening only when an event has an active ticket type and an active payment profile
-- Atomic lock of an event payment profile when sales open
+1. Create an organizer, Stripe payment profile, event, and general-admission ticket type.
+2. Open sales, permanently locking the event to one organizer-owned payment profile.
+3. Atomically reserve capacity for 15 minutes using an idempotency key.
+4. Create one pending order from the active reservation using server-side price data.
+5. Start a Stripe-hosted Checkout Session for the event's connected Stripe account.
+6. Verify a Stripe `checkout.session.completed` webhook.
+7. Atomically convert reserved inventory to sold inventory, mark the order paid, and issue ticket entitlements and credential hashes.
 
-Next: inventory reservations, then order creation and Stripe Checkout.
+Stripe Checkout sessions use server-side line-item amounts, the order ID as the client reference, provider idempotency keys, and order/payment-attempt metadata. Stripe's hosted Checkout supports one-time payment sessions with line items, customer email, metadata, client references, and success/cancel URLs.【cite§source287.31】
 
 ## Technology baseline
 
@@ -22,55 +23,44 @@ Next: inventory reservations, then order creation and Stripe Checkout.
 - Spring Boot 4.1.x
 - PostgreSQL 18.x
 - Keycloak 26.7.x
+- Stripe Java 33.3.0
 - Docker Compose
 - Gradle Kotlin DSL
 
-Only stable production releases are permitted. Preview, milestone, beta, release-candidate, snapshot, and `latest` container versions are not accepted.
+Only stable production releases are permitted. Preview, milestone, beta, release-candidate, snapshot, and `latest` container versions are prohibited.
 
-## Local prerequisites
+## Local development
 
-- JDK 25
-- Docker Engine with Docker Compose
-
-## Start local infrastructure
+Start infrastructure:
 
 ```bash
 docker compose up -d
 ```
 
-## Run the API
+Run the ordinary local API:
 
 ```bash
 ./gradlew :backend:bootRun --args='--spring.profiles.active=local'
 ```
 
-## Example API flow
-
-Create an organizer:
+For Stripe test-mode checkout and webhook handling, provide local test-mode values in an uncommitted `.env` file and activate the Stripe profile:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/organizations \
-  -H 'Content-Type: application/json' \
-  -d '{"legalName":"Example Events GmbH","displayName":"Example Events","defaultLocale":"en-GB"}'
+SPRING_PROFILES_ACTIVE=local,stripe \
+STRIPE_SECRET_KEY=sk_test_replace_me \
+STRIPE_WEBHOOK_SECRET=whsec_replace_me \
+./gradlew :backend:bootRun
 ```
 
-Create a Stripe payment profile, using the returned organization ID:
+Never commit Stripe secrets or use live credentials locally.
 
-```bash
-curl -X POST http://localhost:8080/api/v1/organizations/{organizationId}/payment-profiles \
-  -H 'Content-Type: application/json' \
-  -d '{"providerAccountReference":"acct_example","settlementCurrency":"EUR"}'
-```
+## Important security boundary
 
-Create an event and ticket type, then open sales with the selected payment-profile ID. Once sales open, the profile is immutable for that event.
+The temporary unauthenticated bootstrap routes are for local vertical-slice development only. Before deploying, they must be replaced with Keycloak resource-server authentication, organization membership authorization, personnel roles, and customer magic-link sessions.
 
-## Security notes
+## What remains before production
 
-- Never commit real credentials, private keys, payment secrets, or production data.
-- Customer ticket access will use short-lived, single-use magic links.
-- Personnel accounts will be invitation-only and use password authentication with MFA support.
-- Raw card data will never pass through this application.
-- Bootstrap endpoints are temporarily open for local development and will be replaced with Keycloak authorization before a deployable environment.
+The first backend flow is implemented, but the product is not production-ready. Remaining mandatory work includes: Keycloak realm and authorization integration; transactional outbox and notifications; customer magic-link ticket wallet; presentation of a signed/rotating QR credential; event scanning; refunds, cancellations, and chargebacks; organizer team invitations and role scopes; seller onboarding and secure resale; operational dashboards; API contract tests; CI; cloud deployment; data-protection and accessibility hardening; penetration testing; and production runbooks.
 
 ## License
 
