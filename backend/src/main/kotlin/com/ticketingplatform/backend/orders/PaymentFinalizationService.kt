@@ -5,7 +5,6 @@ import com.ticketingplatform.backend.inventory.InventoryReservationStatus
 import com.ticketingplatform.backend.tickets.TicketIssuanceService
 import java.time.Clock
 import java.time.Instant
-import java.util.UUID
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -22,6 +21,7 @@ class PaymentFinalizationService(
     @Transactional
     fun finalizeStripeCheckout(checkoutReference: String, paymentReference: String?, paidAmountMinor: Long, currency: String) {
         val attempt = attempts.findByCheckoutReference(checkoutReference) ?: throw UnknownPaymentAttemptException(checkoutReference)
+        orders.lockOrder(attempt.orderId)
         val order = orders.findById(attempt.orderId) ?: throw OrderNotFoundException(attempt.orderId)
         if (order.status == OrderStatus.PAID) return
         require(attempt.status == PaymentAttemptStatus.CHECKOUT_STARTED || attempt.status == PaymentAttemptStatus.SUCCEEDED) { "payment attempt is not awaiting confirmation" }
@@ -31,8 +31,7 @@ class PaymentFinalizationService(
         require(reservation.status == InventoryReservationStatus.ACTIVE) { "reservation is not active" }
         val now = Instant.now(clock)
         val converted = reservations.convert(reservation.id, now) ?: throw IllegalStateException("reservation conversion conflicted")
-        check(jdbc.update("""UPDATE ticket_inventory SET reserved_quantity = reserved_quantity - :quantity, sold_quantity = sold_quantity + :quantity, updated_at = :now
-            WHERE ticket_type_id = :ticketTypeId AND reserved_quantity >= :quantity""", mapOf("quantity" to converted.requestedQuantity, "ticketTypeId" to converted.ticketTypeId, "now" to now)) == 1) { "inventory conversion invariant violated" }
+        check(jdbc.update("""UPDATE ticket_inventory SET reserved_quantity = reserved_quantity - :quantity, sold_quantity = sold_quantity + :quantity, updated_at = :now WHERE ticket_type_id = :ticketTypeId AND reserved_quantity >= :quantity""", mapOf("quantity" to converted.requestedQuantity, "ticketTypeId" to converted.ticketTypeId, "now" to now)) == 1) { "inventory conversion invariant violated" }
         attempts.markSucceeded(attempt.id, paymentReference, now)
         check(orders.markPaid(order.id, now)) { "order payment finalization conflicted" }
         tickets.issue(order.id, order.organizationId, order.eventId, converted.ticketTypeId, order.customerEmail, converted.requestedQuantity)

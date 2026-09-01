@@ -9,6 +9,7 @@ interface PaymentProvider {
 data class CreateCheckoutRequest(
     val paymentAttemptId: UUID,
     val orderId: UUID,
+    val providerAccountReference: String,
     val amountMinor: Long,
     val currency: String,
     val customerEmail: String,
