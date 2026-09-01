@@ -19,37 +19,29 @@ class OrderService(
 ) {
     @Transactional
     fun createFromReservation(command: CreateOrderCommand): CustomerOrder {
-        val existing = orderRepository.findByReservationId(command.reservationId)
-        if (existing != null) return existing
-
+        orderRepository.lockReservation(command.reservationId)
+        orderRepository.findByReservationId(command.reservationId)?.let { return it }
         val reservation = reservationRepository.findByIdForOrganization(command.reservationId, command.organizationId)
             ?: throw OrderReservationNotFoundException(command.reservationId)
         require(reservation.eventId == command.eventId) { "reservation does not belong to the requested event" }
         require(reservation.status == InventoryReservationStatus.ACTIVE) { "reservation must be active" }
         require(reservation.expiresAt.isAfter(Instant.now(clock))) { "reservation has expired" }
-
-        val ticketType = jdbc.query(
-            "SELECT name, currency, unit_price_minor FROM ticket_type WHERE id = :ticketTypeId AND event_id = :eventId",
-            mapOf("ticketTypeId" to reservation.ticketTypeId, "eventId" to command.eventId),
-        ) { rs, _ -> TicketTypePrice(rs.getString("name"), rs.getString("currency"), rs.getLong("unit_price_minor")) }.singleOrNull()
+        val eventProfile = jdbc.query("SELECT payment_profile_id FROM event WHERE id = :eventId AND organization_id = :organizationId AND status = 'ON_SALE'",
+            mapOf("eventId" to command.eventId, "organizationId" to command.organizationId)) { rs, _ -> rs.getObject("payment_profile_id", UUID::class.java) }.singleOrNull()
             ?: throw OrderReservationNotFoundException(command.reservationId)
-
+        val ticketType = jdbc.query("SELECT name, currency, unit_price_minor FROM ticket_type WHERE id = :ticketTypeId AND event_id = :eventId",
+            mapOf("ticketTypeId" to reservation.ticketTypeId, "eventId" to command.eventId)) { rs, _ -> TicketTypePrice(rs.getString("name"), rs.getString("currency"), rs.getLong("unit_price_minor")) }.singleOrNull()
+            ?: throw OrderReservationNotFoundException(command.reservationId)
         val email = command.customerEmail.trim().lowercase(Locale.ROOT)
         require(EMAIL_PATTERN.matches(email)) { "customerEmail must be valid" }
         val total = Math.multiplyExact(ticketType.unitPriceMinor, reservation.requestedQuantity.toLong())
         val now = Instant.now(clock)
-        val order = CustomerOrder(UUID.randomUUID(), command.organizationId, command.eventId, reservation.id, email,
-            ticketType.currency, total, OrderStatus.PENDING_PAYMENT, now, now)
-        val item = OrderItem(UUID.randomUUID(), order.id, reservation.ticketTypeId, ticketType.name,
-            reservation.requestedQuantity, ticketType.unitPriceMinor, total, now)
-        return orderRepository.insert(order, item)
+        val order = CustomerOrder(UUID.randomUUID(), command.organizationId, command.eventId, reservation.id, eventProfile, email, ticketType.currency, total, OrderStatus.PENDING_PAYMENT, now, now)
+        return orderRepository.insert(order, OrderItem(UUID.randomUUID(), order.id, reservation.ticketTypeId, ticketType.name, reservation.requestedQuantity, ticketType.unitPriceMinor, total, now))
     }
 
     @Transactional(readOnly = true)
-    fun get(orderId: UUID, organizationId: UUID): CustomerOrder =
-        orderRepository.findByIdForOrganization(orderId, organizationId) ?: throw OrderNotFoundException(orderId)
-
-    private data class TicketTypePrice(val name: String, val currency: String, val unitPriceMinor: Long)
+    fun get(orderId: UUID, organizationId: UUID): CustomerOrder = orderRepository.findByIdForOrganization(orderId, organizationId) ?: throw OrderNotFoundException(orderId)
     companion object { private val EMAIL_PATTERN = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$") }
 }
 
