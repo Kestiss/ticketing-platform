@@ -14,8 +14,6 @@ The backend now supports the core transactional flow:
 6. Verify a Stripe `checkout.session.completed` webhook.
 7. Atomically convert reserved inventory to sold inventory, mark the order paid, and issue ticket entitlements and credential hashes.
 
-Stripe Checkout sessions use server-side line-item amounts, the order ID as the client reference, provider idempotency keys, and order/payment-attempt metadata. Stripe's hosted Checkout supports one-time payment sessions with line items, customer email, metadata, client references, and success/cancel URLs.【cite§source287.31】
-
 ## Technology baseline
 
 - Java 25 LTS
@@ -56,11 +54,11 @@ Never commit Stripe secrets or use live credentials locally.
 
 ## Important security boundary
 
-The temporary unauthenticated bootstrap routes are for local vertical-slice development only. Before deploying, they must be replaced with Keycloak resource-server authentication, organization membership authorization, personnel roles, and customer magic-link sessions.
+The temporary unauthenticated bootstrap routes are for local vertical-slice development only. Before deployment, replace them with Keycloak resource-server authentication, organization membership authorization, personnel roles, and customer magic-link sessions.
 
 ## What remains before production
 
-The first backend flow is implemented, but the product is not production-ready. Remaining mandatory work includes: Keycloak realm and authorization integration; transactional outbox and notifications; customer magic-link ticket wallet; presentation of a signed/rotating QR credential; event scanning; refunds, cancellations, and chargebacks; organizer team invitations and role scopes; seller onboarding and secure resale; operational dashboards; API contract tests; CI; cloud deployment; data-protection and accessibility hardening; penetration testing; and production runbooks.
+The first backend flow is implemented, but the product is not production-ready. Mandatory work remains: Keycloak realm and authorization integration; transactional outbox and notifications; customer magic-link ticket wallet; signed or rotating QR ticket presentation; gate scanning; refunds, cancellations, and chargebacks; organizer team invitations and scoped roles; seller onboarding and secure resale; operational dashboards; API contract tests; CI; cloud deployment; data-protection and accessibility hardening; penetration testing; and production runbooks.
 
 ## License
 

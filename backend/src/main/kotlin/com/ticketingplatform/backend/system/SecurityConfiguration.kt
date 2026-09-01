@@ -9,25 +9,23 @@ import org.springframework.security.web.SecurityFilterChain
 @Configuration
 class SecurityConfiguration {
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
-        http
-            .csrf { it.disable() }
-            .authorizeHttpRequests {
-                it.requestMatchers("/api/v1/system/health", "/actuator/health").permitAll()
-                // TODO: Replace these temporary local-bootstrap endpoints with Keycloak resource-server authorization.
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/payment-profiles").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/payment-profiles/*").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/ticket-types").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/sales/open").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/reservations").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
-                it.requestMatchers(HttpMethod.DELETE, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
-                it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/orders").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/orders/*").permitAll()
-                it.anyRequest().denyAll()
-            }
-            .build()
+    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http.csrf { it.disable() }.authorizeHttpRequests {
+        it.requestMatchers("/api/v1/system/health", "/actuator/health").permitAll()
+        // TODO: Replace local bootstrap routes with Keycloak resource-server authentication and organization authorization.
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/payment-profiles").permitAll()
+        it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/payment-profiles/*").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events").permitAll()
+        it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/ticket-types").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/sales/open").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/reservations").permitAll()
+        it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
+        it.requestMatchers(HttpMethod.DELETE, "/api/v1/organizations/*/events/*/reservations/*").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/orders").permitAll()
+        it.requestMatchers(HttpMethod.GET, "/api/v1/organizations/*/events/*/orders/*").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/orders/*/checkout").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/payments/stripe/webhook").permitAll()
+        it.anyRequest().denyAll()
+    }.build()
 }

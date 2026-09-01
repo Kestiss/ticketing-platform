@@ -19,6 +19,6 @@ data class OrderItem(
 
 data class PaymentAttempt(
     val id: UUID, val orderId: UUID, val providerType: String, val providerPaymentReference: String?,
-    val providerCheckoutReference: String?, val status: PaymentAttemptStatus, val idempotencyKey: String,
-    val createdAt: Instant, val updatedAt: Instant,
+    val providerCheckoutReference: String?, val checkoutRedirectUrl: String?, val status: PaymentAttemptStatus,
+    val idempotencyKey: String, val createdAt: Instant, val updatedAt: Instant,
 )
