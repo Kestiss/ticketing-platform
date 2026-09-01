@@ -1,5 +1,8 @@
 package com.ticketingplatform.backend.payments.stripe
 
+import com.stripe.StripeClient
+import com.stripe.net.RequestOptions
+import com.stripe.param.checkout.SessionCreateParams
 import com.ticketingplatform.backend.payments.CheckoutSession
 import com.ticketingplatform.backend.payments.CreateCheckoutRequest
 import com.ticketingplatform.backend.payments.PaymentProvider
@@ -14,7 +17,19 @@ class StripePaymentProvider(
 ) : PaymentProvider {
     override fun createCheckout(request: CreateCheckoutRequest): CheckoutSession {
         check(secretKey.isNotBlank()) { "Stripe secret key must be configured" }
-        // Stripe SDK integration is added in the next commit. This guard ensures no silent mock payment path exists.
-        throw UnsupportedOperationException("Stripe Checkout SDK integration is not configured yet")
+        val params = SessionCreateParams.builder()
+            .setMode(SessionCreateParams.Mode.PAYMENT)
+            .setCustomerEmail(request.customerEmail)
+            .setSuccessUrl(request.successUrl)
+            .setCancelUrl(request.cancelUrl)
+            .setClientReferenceId(request.orderId.toString())
+            .putMetadata("order_id", request.orderId.toString())
+            .putMetadata("payment_attempt_id", request.paymentAttemptId.toString())
+            .addLineItem(SessionCreateParams.LineItem.builder().setQuantity(1L)
+                .setPriceData(SessionCreateParams.LineItem.PriceData.builder().setCurrency(request.currency.lowercase())
+                    .setUnitAmount(request.amountMinor).setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder().setName("Event ticket order").build()).build()).build())
+            .build()
+        val session = StripeClient(secretKey).v1().checkout().sessions().create(params, RequestOptions.builder().setIdempotencyKey(request.idempotencyKey).build())
+        return CheckoutSession(session.id, requireNotNull(session.url) { "Stripe Checkout did not return a URL" })
     }
 }
