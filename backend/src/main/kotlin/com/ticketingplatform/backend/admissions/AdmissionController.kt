@@ -25,9 +25,9 @@ class AdmissionController(private val service: AdmissionService) {
     }
 
     @PostMapping("/admissions/validate")
-    fun validate(@PathVariable eventId: UUID, @RequestHeader("X-Scanner-Device") scannerDevice: UUID,
+    fun validate(@PathVariable organizationId: UUID, @PathVariable eventId: UUID, @RequestHeader("X-Scanner-Device") scannerDevice: UUID,
                  @RequestHeader("X-Scanner-Secret") scannerSecret: String, @Valid @RequestBody request: ValidateAdmissionRequest): AdmissionResponse {
-        val decision = service.validate(ValidateAdmissionCommand(scannerDevice, scannerSecret, eventId, request.presentationClaim))
+        val decision = service.validate(ValidateAdmissionCommand(organizationId, scannerDevice, scannerSecret, eventId, request.presentationClaim))
         return AdmissionResponse(decision.outcome, decision.reasonCode, decision.ticketEntitlementId, decision.scannedAt)
     }
 
