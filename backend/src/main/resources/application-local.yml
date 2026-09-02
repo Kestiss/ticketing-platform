@@ -9,3 +9,7 @@ spring:
 logging:
   level:
     com.ticketingplatform: DEBUG
+
+ticketing:
+  wallet:
+    presentation-signing-key: ${TICKETING_WALLET_PRESENTATION_SIGNING_KEY:local-development-only-wallet-signing-key-change-me}
