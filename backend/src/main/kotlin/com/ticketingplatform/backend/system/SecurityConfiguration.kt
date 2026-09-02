@@ -29,6 +29,8 @@ class SecurityConfiguration {
         it.requestMatchers(HttpMethod.POST, "/api/v1/customer/wallet/magic-links").permitAll()
         it.requestMatchers(HttpMethod.POST, "/api/v1/customer/wallet/magic-links/redeem").permitAll()
         it.requestMatchers(HttpMethod.GET, "/api/v1/customer/wallet/tickets").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/scanners").permitAll()
+        it.requestMatchers(HttpMethod.POST, "/api/v1/organizations/*/events/*/admissions/validate").permitAll()
         it.anyRequest().denyAll()
     }.build()
 }
