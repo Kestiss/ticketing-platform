@@ -5,6 +5,10 @@ spring:
     timeout-per-shutdown-phase: 30s
   profiles:
     default: local
+  task:
+    scheduling:
+      pool:
+        size: 2
 
 server:
   shutdown: graceful
@@ -23,3 +27,5 @@ ticketing:
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  wallet:
+    presentation-signing-key: ${TICKETING_WALLET_PRESENTATION_SIGNING_KEY:}
