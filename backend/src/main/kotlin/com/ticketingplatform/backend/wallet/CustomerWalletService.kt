@@ -1,5 +1,6 @@
 package com.ticketingplatform.backend.wallet
 
+import com.ticketingplatform.backend.notifications.NotificationOutboxRepository
 import java.nio.charset.StandardCharsets
 import java.time.Clock
 import java.time.Duration
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class CustomerWalletService(
     private val repository: WalletAccessRepository,
+    private val notifications: NotificationOutboxRepository,
     private val clock: Clock,
     @Value("${ticketing.wallet.presentation-signing-key}") private val presentationSigningKey: String,
 ) {
@@ -23,19 +25,18 @@ class CustomerWalletService(
         val normalizedEmail = normalizeEmail(email)
         val rawToken = SecureToken.generate()
         val now = Instant.now(clock)
-        repository.insertMagicLink(
-            CustomerMagicLink(UUID.randomUUID(), normalizedEmail, SecureToken.hash(rawToken), MagicLinkPurpose.TICKET_WALLET,
-                now, now.plus(MAGIC_LINK_TTL), null),
-        )
-        // A transactional outbox notification will deliver this URL in the production notification module.
-        return MagicLinkRequestResult(rawToken, now.plus(MAGIC_LINK_TTL))
+        val expiresAt = now.plus(MAGIC_LINK_TTL)
+        repository.insertMagicLink(CustomerMagicLink(UUID.randomUUID(), normalizedEmail, SecureToken.hash(rawToken), MagicLinkPurpose.TICKET_WALLET, now, expiresAt, null))
+        notifications.enqueueMagicLink(normalizedEmail, expiresAt)
+        // Raw token is intentionally retained only in-process. A production email adapter must create and deliver
+        // the URL within the same asynchronous dispatch boundary without persisting the raw token in logs or tables.
+        return MagicLinkRequestResult(rawToken, expiresAt)
     }
 
     @Transactional
     fun redeemMagicLink(rawToken: String): WalletSessionResult {
         val now = Instant.now(clock)
-        val link = repository.consumeMagicLink(SecureToken.hash(rawToken), now)
-            ?: throw InvalidMagicLinkException()
+        val link = repository.consumeMagicLink(SecureToken.hash(rawToken), now) ?: throw InvalidMagicLinkException()
         val rawSessionToken = SecureToken.generate()
         val session = CustomerWalletSession(UUID.randomUUID(), link.email, SecureToken.hash(rawSessionToken), now, now.plus(SESSION_TTL), null)
         repository.insertSession(session)
@@ -44,13 +45,10 @@ class CustomerWalletService(
 
     @Transactional(readOnly = true)
     fun listTickets(rawSessionToken: String): List<WalletTicketView> {
-        val session = repository.findActiveSession(SecureToken.hash(rawSessionToken), Instant.now(clock))
-            ?: throw InvalidWalletSessionException()
+        val session = repository.findActiveSession(SecureToken.hash(rawSessionToken), Instant.now(clock)) ?: throw InvalidWalletSessionException()
         return repository.findTicketsByEmail(session.email).map { ticket ->
-            WalletTicketView(
-                ticket.entitlementId, ticket.eventId, ticket.eventName, ticket.startsAt, ticket.endsAt, ticket.timeZone,
-                ticket.entitlementStatus, ticket.credentialVersion, presentationClaim(ticket),
-            )
+            WalletTicketView(ticket.entitlementId, ticket.eventId, ticket.eventName, ticket.startsAt, ticket.endsAt, ticket.timeZone,
+                ticket.entitlementStatus, ticket.credentialVersion, presentationClaim(ticket))
         }
     }
 
@@ -70,24 +68,14 @@ class CustomerWalletService(
     }
 
     companion object {
-        private val MAGIC_LINK_TTL: Duration = Duration.ofMinutes(15)
-        private val SESSION_TTL: Duration = Duration.ofHours(24)
+        private val MAGIC_LINK_TTL = Duration.ofMinutes(15)
+        private val SESSION_TTL = Duration.ofHours(24)
         private val EMAIL_PATTERN = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
     }
 }
 
 data class MagicLinkRequestResult(val rawToken: String, val expiresAt: Instant)
 data class WalletSessionResult(val rawSessionToken: String, val expiresAt: Instant)
-data class WalletTicketView(
-    val entitlementId: UUID,
-    val eventId: UUID,
-    val eventName: String,
-    val startsAt: Instant,
-    val endsAt: Instant,
-    val timeZone: String,
-    val status: String,
-    val credentialVersion: Int,
-    val presentationClaim: String,
-)
+data class WalletTicketView(val entitlementId: UUID, val eventId: UUID, val eventName: String, val startsAt: Instant, val endsAt: Instant, val timeZone: String, val status: String, val credentialVersion: Int, val presentationClaim: String)
 class InvalidMagicLinkException : RuntimeException("Magic link is invalid, expired, or already used")
 class InvalidWalletSessionException : RuntimeException("Wallet session is invalid or expired")
